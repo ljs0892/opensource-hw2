@@ -1,0 +1,31 @@
+{
+  "config_version": "1.0.0",
+  "model": {
+    "model_id": "nateraw/food",
+    "revision": "8991abd49ea01ebf502aeda51d4f12a59c603e01",
+    "model_version": "1.0.0",
+    "local_dir": "models/nateraw-food",
+    "architecture": "ViT-B/16 (fine-tuned from google/vit-base-patch16-224-in21k)",
+    "training_data": "Food-101 (101 classes)",
+    "reported_eval_accuracy": 0.8913,
+    "license": "apache-2.0",
+    "device": "cpu"
+  },
+  "inference": {
+    "top_k": 3,
+    "confidence_threshold": 0.5,
+    "max_upload_bytes": 10485760,
+    "allowed_formats": ["JPEG", "PNG", "WEBP"]
+  },
+  "server": {
+    "host": "127.0.0.1",
+    "port": 8000
+  },
+  "data": {
+    "calorie_table": "data/calorie_table.json"
+  },
+  "logs": {
+    "prediction_log": "logs/predictions.jsonl",
+    "feedback_log": "logs/feedback.jsonl"
+  }
+}

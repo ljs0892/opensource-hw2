@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>음식 사진 분류 · 칼로리 추정</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="app-header">
+    <h1>음식 사진 분류 · 칼로리 추정</h1>
+    <p id="model-line" class="muted">모델 정보를 불러오는 중…</p>
+  </header>
+
+  <main class="container">
+    <div class="notice" role="note">
+      <strong>추정치 안내</strong>
+      <p>이 결과는 AI 추정치이며 실제와 다를 수 있습니다. 사진 속 음식의 양은 추정하지 않으며, 칼로리는 음식 종류별 <strong>1인분 기준 대략값</strong>입니다.</p>
+    </div>
+
+    <section class="card" aria-labelledby="upload-title">
+      <h2 id="upload-title">1. 사진 선택</h2>
+      <label class="file-button" for="file-input">사진 선택하기</label>
+      <input id="file-input" type="file" accept="image/jpeg,image/png,image/webp" hidden>
+      <p class="muted small">JPEG, PNG, WEBP · 최대 <span id="max-mb">10</span>MB · 업로드한 사진은 서버에 저장되지 않습니다.</p>
+
+      <figure id="preview-wrap" class="preview" hidden>
+        <img id="preview" alt="선택한 사진 미리보기">
+        <figcaption id="file-name" class="small muted"></figcaption>
+      </figure>
+
+      <div class="actions">
+        <button id="analyze-btn" type="button" disabled>분석하기</button>
+        <button id="clear-btn" type="button" class="secondary" disabled>지우기</button>
+      </div>
+
+      <p id="loading" class="loading" role="status" hidden>분석 중입니다… (CPU 추론이라 수 초 걸릴 수 있습니다)</p>
+      <div id="error-box" class="error" role="alert" hidden></div>
+    </section>
+
+    <section id="results" class="card" aria-labelledby="results-title" hidden>
+      <h2 id="results-title">2. 분석 결과</h2>
+      <div id="status-badge" class="badge"></div>
+      <p id="result-message" class="result-message"></p>
+
+      <h3>상위 후보 (신뢰도)</h3>
+      <ol id="top-list" class="top-list"></ol>
+
+      <div id="nutrition-wrap" hidden>
+        <h3>1인분 기준 칼로리 (대략값)</h3>
+        <table class="table">
+          <thead>
+            <tr><th scope="col">음식</th><th scope="col">기준량</th><th scope="col">kcal</th></tr>
+          </thead>
+          <tbody id="nutrition-body"></tbody>
+        </table>
+        <p class="small muted">사진 속 실제 양은 추정하지 않았습니다. 같은 음식이라도 양과 조리법에 따라 칼로리는 크게 달라집니다.</p>
+      </div>
+
+      <div class="feedback" aria-labelledby="feedback-title">
+        <h3 id="feedback-title">결과가 맞았나요?</h3>
+        <div class="actions">
+          <button id="fb-yes" type="button" class="secondary">맞아요</button>
+          <button id="fb-no" type="button" class="secondary">틀려요</button>
+        </div>
+        <div id="fb-correction" hidden>
+          <label for="fb-label" class="small">실제 음식은 무엇인가요? (선택)</label>
+          <select id="fb-label"><option value="">선택 안 함</option></select>
+          <button id="fb-send" type="button">보내기</button>
+        </div>
+        <p id="fb-thanks" class="small" role="status" hidden>피드백 감사합니다. 모델 개선에 사용됩니다.</p>
+      </div>
+    </section>
+
+    <details class="card">
+      <summary>전체 음식 칼로리 표 (1인분 기준 대략값)</summary>
+      <p id="cal-notice" class="small muted"></p>
+      <table class="table">
+        <thead>
+          <tr><th scope="col">음식</th><th scope="col">기준량</th><th scope="col">kcal</th></tr>
+        </thead>
+        <tbody id="cal-body"></tbody>
+      </table>
+    </details>
+  </main>
+
+  <footer class="app-footer small muted">
+    로컬 서버(127.0.0.1)에서만 동작합니다. 예측 로그에는 시간·예측 클래스·신뢰도·지연시간만 기록되며 이미지는 기록되지 않습니다.
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

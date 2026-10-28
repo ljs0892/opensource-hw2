@@ -1,0 +1,10 @@
+# 런타임 의존성 — 검증에 사용한 버전으로 고정
+# 설치 (프로젝트 폴더 안 .vendor/ 에 설치, 시스템 Python 변경 없음):
+#   python3 -m pip install --target ./.vendor -r requirements.txt
+fastapi==0.162.0
+uvicorn[standard]==0.54.0
+python-multipart==0.0.32
+pillow==13.0.0
+transformers==5.21.0
+torch==2.14.1
+huggingface_hub==2.3.0

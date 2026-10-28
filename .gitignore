@@ -1,0 +1,31 @@
+# 설치물 (requirements.txt로 재생성)
+.vendor/
+
+# 모델 가중치 (scripts/download_model.py로 재다운로드)
+models/
+*.bin
+*.safetensors
+*.onnx
+
+# 실행 중 생성되는 로그와 데이터
+logs/
+*.jsonl
+
+# 파이썬 캐시
+__pycache__/
+*.pyc
+
+# 검증·테스트 산출물
+verification/
+tests/fixtures/
+.pytest_cache/
+
+# 인증정보·환경 설정 (절대 커밋하지 말 것)
+.env
+.env.*
+*.pem
+*.key
+.hf_token
+
+# macOS 잡파일
+.DS_Store
