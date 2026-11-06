@@ -1,0 +1,91 @@
+name: CI · Docker build & push
+
+# main 에 push 하면 이미지를 빌드·검증한 뒤 Docker Hub 에 올린다.
+# 풀 리퀘스트에서는 빌드와 검증만 하고 업로드하지 않는다.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test-push:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      IMAGE_REPO: ${{ secrets.DOCKERHUB_USERNAME || 'local' }}/food-calorie-app
+      SMOKE_BASE: http://127.0.0.1:8000
+      SMOKE_CONTAINER: food-calorie-smoke
+
+    steps:
+      - name: 소스 가져오기
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Buildx 설정
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Docker Hub 로그인 (push 이벤트에서만)
+        if: github.event_name == 'push'
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: 이미지 태그 생성
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.IMAGE_REPO }}
+          tags: |
+            type=sha,format=short
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: 이미지 빌드 (모델 다운로드·해시 확인·추론 검증 포함)
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: 컨테이너 스모크 테스트 (/health, /api/predict)
+        run: |
+          set -euo pipefail
+          FIRST_TAG="$(echo "$TAGS" | head -n1)"
+          docker run -d --name "$SMOKE_CONTAINER" -p 127.0.0.1:8000:8000 "$FIRST_TAG"
+          python3 scripts/smoke_test.py "$SMOKE_BASE"
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+
+      - name: 실패 시 컨테이너 로그 출력
+        if: failure()
+        run: docker logs "$SMOKE_CONTAINER" || true
+
+      - name: 스모크 컨테이너 정리
+        if: always()
+        run: docker rm -f "$SMOKE_CONTAINER" || true
+
+      - name: Docker Hub 업로드 (push 이벤트에서만)
+        if: github.event_name == 'push'
+        run: |
+          set -euo pipefail
+          while IFS= read -r tag; do
+            [ -n "$tag" ] || continue
+            echo "push: $tag"
+            docker push "$tag"
+          done <<< "$TAGS"
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}

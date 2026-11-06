@@ -1,0 +1,30 @@
+# 이미지에 필요한 파일만 빌드 컨텍스트로 보낸다.
+.git
+.github
+.vendor/
+models/
+logs/
+verification/
+__pycache__/
+**/__pycache__/
+*.pyc
+.DS_Store
+.env
+.env.*
+*.pem
+*.key
+.hf_token
+Dockerfile
+.dockerignore
+README.md
+.gitignore
+run.sh
+requirements-dev.txt
+
+# 테스트: 빌드 검증에 쓰는 이미지 한 장만 허용
+tests/
+!tests/fixtures/
+tests/fixtures/*
+!tests/fixtures/images/
+tests/fixtures/images/*
+!tests/fixtures/images/bibimbap_seoul_beef.jpg

@@ -56,6 +56,41 @@ PYTHONPATH=.vendor python3 scripts/download_model.py
 3. 상위 3개 후보와 신뢰도, 1인분 기준 칼로리를 확인합니다.
 4. "맞아요" 또는 "틀려요"로 결과를 알려 줄 수 있습니다. 틀렸다면 실제 음식을 골라 줄 수도 있습니다.
 
+## Docker로 실행하기
+
+Docker가 설치되어 있다면 가상환경과 로컬 설치 없이 실행할 수 있습니다. 빌드 과정에서 모델을 내려받고, SHA-256을 확인하고, 실제 사진으로 추론까지 검증합니다.
+
+```zsh
+docker build -t food-calorie-app .
+docker run --rm -p 127.0.0.1:8000:8000 food-calorie-app
+```
+
+- 브라우저에서 http://127.0.0.1:8000 을 엽니다.
+- 포트는 `127.0.0.1`에만 게시됩니다. 같은 네트워크의 다른 기기에서는 접근할 수 없습니다.
+- 컨테이너 안에서는 `0.0.0.0`에 바인딩합니다. Docker 포트 게시가 동작하려면 필요하고, 실제 외부 노출은 위 `127.0.0.1:` 설정이 막습니다.
+- 이미지는 CPU 전용 PyTorch를 사용하며 약 2.3GB입니다. 빌드 중 모델(약 340MB)을 Hugging Face에서 받으므로 빌드에는 인터넷 연결이 필요합니다.
+- 컨테이너는 비루트 사용자(`app`, uid 10001)로 실행됩니다. 업로드 이미지는 저장되지 않으며, `logs/`는 컨테이너 안에만 생깁니다. 호스트에 로그를 남기려면 `-v "$PWD/logs:/app/logs"`를 추가하세요.
+- 현재 빌드는 `linux/amd64`입니다. Apple Silicon에서는 에뮬레이션으로 실행되므로 느릴 수 있습니다.
+
+## CI: GitHub Actions로 자동 빌드·업로드
+
+`.github/workflows/ci.yml`은 다음 순서로 동작합니다.
+
+1. `main` 브랜치에 push하면 이미지를 빌드합니다. 풀 리퀘스트에서는 빌드와 검증까지만 합니다.
+2. 빌드 중 모델 해시 확인과 추론 검증이 통과해야 합니다.
+3. 빌드된 이미지를 `127.0.0.1:8000`으로 띄워 `scripts/smoke_test.py`로 `/health`와 `/api/predict`를 확인합니다.
+4. 통과하면 Docker Hub에 `sha-<커밋>` 태그와, `main`이면 `latest` 태그로 업로드합니다.
+
+GitHub 저장소의 **Settings → Secrets and variables → Actions**에 다음 두 값을 등록해야 합니다.
+
+| 이름 | 값 |
+|---|---|
+| `DOCKERHUB_USERNAME` | Docker Hub 사용자 이름 |
+| `DOCKERHUB_TOKEN` | Docker Hub 액세스 토큰 (비밀번호가 아닌 Access Token 권장, 쓰기 권한) |
+
+- Docker Hub 저장소 이름은 `<DOCKERHUB_USERNAME>/food-calorie-app`입니다. 첫 push 때 저장소가 없으면 Docker Hub에서 미리 만들어 두세요.
+- 액션은 커밋 SHA로 고정되어 있습니다. 버전을 올릴 때는 `ci.yml`의 주석 버전과 SHA를 함께 바꾸세요.
+
 ## API
 
 | 메서드 | 경로 | 설명 |
@@ -90,6 +125,11 @@ data/calorie_table.json  음식별 1인분 칼로리 대략값
 scripts/download_model.py  고정 리비전 모델 다운로드
 run.sh                실행 스크립트 (127.0.0.1 바인딩)
 requirements.txt      런타임 의존성 (검증 버전 고정)
+Dockerfile            컨테이너 이미지 빌드 (모델 준비·검증 포함)
+.github/workflows/ci.yml  빌드·스모크 테스트·Docker Hub 업로드
+scripts/verify_model.py   모델 로드·추론 검증 (빌드에서 실행)
+scripts/smoke_test.py     실행 중인 서버 스모크 테스트
+tests/fixtures/images/    검증용 사진 1장 (출처: SOURCES.md)
 ```
 
 실행 중에는 `.vendor/`, `models/`, `logs/`가 생깁니다. 이 폴더들은 Git에 올리지 마세요(`.gitignore`에 포함).

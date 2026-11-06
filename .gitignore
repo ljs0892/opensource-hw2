@@ -17,7 +17,11 @@ __pycache__/
 
 # 검증·테스트 산출물
 verification/
-tests/fixtures/
+tests/fixtures/*
+!tests/fixtures/images/
+tests/fixtures/images/*
+!tests/fixtures/images/bibimbap_seoul_beef.jpg
+!tests/fixtures/images/SOURCES.md
 .pytest_cache/
 
 # 인증정보·환경 설정 (절대 커밋하지 말 것)

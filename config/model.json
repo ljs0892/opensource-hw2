@@ -5,6 +5,8 @@
     "revision": "8991abd49ea01ebf502aeda51d4f12a59c603e01",
     "model_version": "1.0.0",
     "local_dir": "models/nateraw-food",
+    "weights_file": "pytorch_model.bin",
+    "weights_sha256": "33d6b7d44c0bb524fbb6f6d3b7d1f7c8d7c703b58882bf2a845355d9411f566d",
     "architecture": "ViT-B/16 (fine-tuned from google/vit-base-patch16-224-in21k)",
     "training_data": "Food-101 (101 classes)",
     "reported_eval_accuracy": 0.8913,
