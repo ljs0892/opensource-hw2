@@ -59,10 +59,38 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
       - name: Docker 설정 분리 (launchd Runner는 macOS 키체인에 접근할 수 없음)
+        # Docker CLI 기본 자격 증명 저장소(osxkeychain)를 쓰지 않도록, 작업 임시 폴더에만 저장하는 헬퍼를 둔다.
+        # 자격 증명은 이 작업의 RUNNER_TEMP 안에만 있고, 마지막 단계에서 삭제한다.
         run: |
           set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/docker-config"
-          echo '{}' > "$RUNNER_TEMP/docker-config/config.json"
+          mkdir -p "$RUNNER_TEMP/docker-config" "$RUNNER_TEMP/docker-bin"
+          cat > "$RUNNER_TEMP/docker-bin/docker-credential-runner-tmp" <<'PY'
+          #!/usr/bin/env python3
+          import json, os, sys
+          store = os.path.join(os.environ["DOCKER_CONFIG"], "creds.json")
+          def load():
+              return json.load(open(store)) if os.path.exists(store) else {}
+          def save(d):
+              with open(store, "w") as f:
+                  json.dump(d, f)
+          cmd = sys.argv[1]
+          if cmd == "store":
+              req = json.load(sys.stdin)
+              d = load(); d[req["ServerURL"]] = {"Username": req["Username"], "Secret": req["Secret"]}; save(d)
+          elif cmd == "get":
+              url = sys.stdin.read().strip(); d = load()
+              if url in d:
+                  print(json.dumps({"ServerURL": url, **d[url]}))
+              else:
+                  print("credentials not found in store"); sys.exit(1)
+          elif cmd == "erase":
+              url = sys.stdin.read().strip(); d = load(); d.pop(url, None); save(d)
+          elif cmd == "list":
+              print(json.dumps({k: v["Username"] for k, v in load().items()}))
+          PY
+          chmod +x "$RUNNER_TEMP/docker-bin/docker-credential-runner-tmp"
+          echo '{"credsStore": "runner-tmp"}' > "$RUNNER_TEMP/docker-config/config.json"
+          echo "$RUNNER_TEMP/docker-bin" >> "$GITHUB_PATH"
           echo "DOCKER_CONFIG=$RUNNER_TEMP/docker-config" >> "$GITHUB_ENV"
           echo "DOCKER_HOST=unix://$HOME/.docker/run/docker.sock" >> "$GITHUB_ENV"
 
@@ -148,4 +176,4 @@ jobs:
         run: |
           export PATH="$HOME/.docker/bin:/usr/local/bin:$PATH"
           docker logout || true
-          rm -rf "$RUNNER_TEMP/docker-config"
+          rm -rf "$RUNNER_TEMP/docker-config" "$RUNNER_TEMP/docker-bin"
