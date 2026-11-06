@@ -98,7 +98,7 @@ GitHub 저장소의 **Settings → Secrets and variables → Actions**에 다음
 - 구조: `food-router`(nginx)가 8000 포트를 점유하고, 앱은 블루/그린 두 컨테이너(`food-app-blue`, `food-app-green`)로 운영합니다.
 - 전환: 유휴 색에 새 이미지를 띄우고 컨테이너 안에서 스모크 테스트를 통과하면 라우터 upstream을 바꾸고 `nginx -s reload`로 전환합니다. 검증에 실패하면 라우터는 건드리지 않습니다.
 - 최초 1회: 무중단 구성 이전의 단일 컨테이너(`food-calorie-app`)에서 옮겨 올 때 포트를 넘기는 약 6초의 공백이 있습니다.
-- 모니터링: 배포 전부터 독립 프로세스(`scripts/monitor.py`)가 고정 사진으로 `/api/predict`를 1초 간격 호출해 기록합니다. 배포 완료 후 30초 더 관찰하고 요약(`scripts/monitor_report.py`)을 Actions Summary에 출력합니다. 전체 로그는 `deploy-monitor-<run_id>` 아티팩트(UTF-8)로 올라갑니다.
+- 모니터링: 배포 전부터 독립 프로세스(`scripts/monitor.py`)가 고정 사진으로 `/api/predict`를 1초 간격 호출해 최대 100건을 기록합니다(배포 전 확인, 배포, 배포 후 30초 관찰 포함). 배포 완료 후 30초 더 관찰하고 요약(`scripts/monitor_report.py`)을 Actions Summary에 출력합니다. 전체 로그는 `deploy-monitor-<run_id>` 아티팩트(UTF-8)로 올라갑니다.
 - 로컬에서 직접 실행: `IMAGE=<계정>/food-calorie-app:sha-<커밋> scripts/deploy_bluegreen.sh`
 - 로그와 라우터 상태는 `~/food-calorie-app-data/`에 있으며 저장소 밖에 있습니다.
 

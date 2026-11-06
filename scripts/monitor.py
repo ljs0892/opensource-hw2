@@ -113,6 +113,9 @@ def run(args) -> int:
         if time.monotonic() - started > args.max_seconds:
             tl.write(f"# 최대 실행 시간 {args.max_seconds}s 초과로 종료\n")
             break
+        if args.max_requests and seq >= args.max_requests:
+            tl.write(f"# 요청 {args.max_requests}건 도달로 종료\n")
+            break
         seq += 1
         phase = current_phase(phase_log)
         rec = call_once(args.url, image)
@@ -167,6 +170,7 @@ def main() -> int:
     r.add_argument("--phase-log", default=None)
     r.add_argument("--stop-file", required=True)
     r.add_argument("--max-seconds", type=int, default=1800)
+    r.add_argument("--max-requests", type=int, default=0, help="이 건수에 도달하면 종료 (0 = 제한 없음)")
     r.set_defaults(func=run)
 
     w = sub.add_parser("wait-ok")

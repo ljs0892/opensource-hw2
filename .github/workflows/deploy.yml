@@ -111,7 +111,7 @@ jobs:
             --url "$SERVICE_URL/api/predict" \
             --image tests/fixtures/images/bibimbap_seoul_beef.jpg \
             --out monitor --phase-log monitor/phases.log \
-            --stop-file monitor/STOP --max-seconds 1500 \
+            --stop-file monitor/STOP --max-seconds 1500 --max-requests 100 \
             > monitor/monitor.stdout.log 2>&1 &
           echo $! > monitor/monitor.pid
           disown || true
@@ -131,13 +131,13 @@ jobs:
           set -o pipefail
           scripts/deploy_bluegreen.sh 2>&1 | tee -a monitor/deploy.log
 
-      - name: 배포 완료 후 30초 추가 관찰
+      - name: 배포 완료 후 30초 추가 관찰 (총 100건 한도 안에서)
         run: |
           set -euo pipefail
-          kill -0 "$(cat monitor/monitor.pid)"
           printf '%s POST_OBSERVE_START\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> monitor/phases.log
           sleep 30
           printf '%s POST_OBSERVE_END\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> monitor/phases.log
+          echo "현재 기록된 요청 수: $(wc -l < monitor/requests.jsonl | tr -d ' ')"
 
       - name: 모니터 종료
         if: always()
