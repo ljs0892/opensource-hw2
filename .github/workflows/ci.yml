@@ -5,6 +5,7 @@ name: CI · Docker build & push
 on:
   push:
     branches: [main]
+    paths-ignore: ["docs/**", "eval/**", "**/*.md"]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -56,6 +57,8 @@ jobs:
           platforms: linux/amd64
           load: true
           push: false
+          build-args: |
+            APP_VERSION=sha-${{ github.sha }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha

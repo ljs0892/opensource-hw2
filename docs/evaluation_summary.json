@@ -1,0 +1,179 @@
+{
+  "dataset": {
+    "images": 100,
+    "tuning": 30,
+    "final": 70,
+    "seed": 2026,
+    "source": "ethz/food101 validation split (Foodspotting 이미지, scientific fair use)",
+    "images_in_git": false
+  },
+  "calorie_reference": {
+    "type": "proxy",
+    "description": "USDA SR Legacy 기반 보조 정답 18개 클래스 (사진별 실측 아님, 표본 작음)",
+    "classes": 18
+  },
+  "changes": {
+    "attempt_1_preprocess": "좌우 반전 TTA 추가 (inference.tta_hflip: false → true), 전처리 크기 방식은 유지",
+    "attempt_2_calorie": "미적용 (칼로리 정답 부재로 변경 효과 검증 불가)",
+    "attempts_used": 1
+  },
+  "summary": {
+    "before_tuning": {
+      "n": 30,
+      "top1_acc": 90.0,
+      "top3_acc": 96.7,
+      "request_errors": 0,
+      "latency_ms_mean": 183.9,
+      "latency_ms_max": 294.1,
+      "wall_ms_mean": 186.84,
+      "wall_ms_max": 318.9,
+      "kcal_n": 7,
+      "kcal_mae_correct_class": 43.91,
+      "kcal_mape_correct_class": 34.99,
+      "kcal_mae_end_to_end": 43.91,
+      "kcal_mape_end_to_end": 34.99
+    },
+    "before_final": {
+      "n": 70,
+      "top1_acc": 95.7,
+      "top3_acc": 97.1,
+      "request_errors": 0,
+      "latency_ms_mean": 185.43,
+      "latency_ms_max": 206.2,
+      "wall_ms_mean": 187.76,
+      "wall_ms_max": 208.5,
+      "kcal_n": 11,
+      "kcal_mae_correct_class": 55.58,
+      "kcal_mape_correct_class": 20.07,
+      "kcal_mae_end_to_end": 93.76,
+      "kcal_mape_end_to_end": 29.12
+    }
+  },
+  "variants_tuning": {
+    "t_full": {
+      "label": "기준 (full, TTA 없음)",
+      "top1_acc": 90.0,
+      "top3_acc": 96.7,
+      "latency_ms_mean": 76.62
+    },
+    "t_crop": {
+      "label": "중앙 크롭",
+      "top1_acc": 90.0,
+      "top3_acc": 96.7,
+      "latency_ms_mean": 42.88
+    },
+    "t_flip": {
+      "label": "좌우 반전 TTA (채택)",
+      "top1_acc": 90.0,
+      "top3_acc": 100.0,
+      "latency_ms_mean": 68.7
+    },
+    "t_crop_flip": {
+      "label": "중앙 크롭 + 좌우 반전 TTA",
+      "top1_acc": 90.0,
+      "top3_acc": 100.0,
+      "latency_ms_mean": 67.33
+    }
+  },
+  "per_food_final": [
+    {
+      "name_ko": "핫도그",
+      "gold": "hot_dog",
+      "pred": "hot_dog",
+      "pred_kcal": 300,
+      "ref_kcal": 453.0,
+      "correct": true,
+      "pred_before": "hot_dog"
+    },
+    {
+      "name_ko": "사시미",
+      "gold": "sashimi",
+      "pred": "sashimi",
+      "pred_kcal": 200,
+      "ref_kcal": 216.0,
+      "correct": true,
+      "pred_before": "sashimi"
+    },
+    {
+      "name_ko": "팔라펠",
+      "gold": "falafel",
+      "pred": "falafel",
+      "pred_kcal": 330,
+      "ref_kcal": 399.6,
+      "correct": true,
+      "pred_before": "falafel"
+    },
+    {
+      "name_ko": "도넛",
+      "gold": "donuts",
+      "pred": "donuts",
+      "pred_kcal": 250,
+      "ref_kcal": 255.6,
+      "correct": true,
+      "pred_before": "donuts"
+    },
+    {
+      "name_ko": "홍합 요리",
+      "gold": "mussels",
+      "pred": "mussels",
+      "pred_kcal": 250,
+      "ref_kcal": 344.0,
+      "correct": true,
+      "pred_before": "mussels"
+    },
+    {
+      "name_ko": "볶음밥",
+      "gold": "fried_rice",
+      "pred": "fried_rice",
+      "pred_kcal": 600,
+      "ref_kcal": 522.0,
+      "correct": true,
+      "pred_before": "fried_rice"
+    },
+    {
+      "name_ko": "해초 샐러드",
+      "gold": "seaweed_salad",
+      "pred": "seaweed_salad",
+      "pred_kcal": 80,
+      "ref_kcal": 43.0,
+      "correct": true,
+      "pred_before": "seaweed_salad"
+    },
+    {
+      "name_ko": "닭날개(윙)",
+      "gold": "chicken_wings",
+      "pred": "fish_and_chips",
+      "pred_kcal": 900,
+      "ref_kcal": 422.0,
+      "correct": false,
+      "pred_before": "fish_and_chips"
+    },
+    {
+      "name_ko": "햄버거",
+      "gold": "hamburger",
+      "pred": "hamburger",
+      "pred_kcal": 500,
+      "ref_kcal": 594.0,
+      "correct": true,
+      "pred_before": "hamburger"
+    },
+    {
+      "name_ko": "피자",
+      "gold": "pizza",
+      "pred": "pizza",
+      "pred_kcal": 300,
+      "ref_kcal": 294.8,
+      "correct": true,
+      "pred_before": "pizza"
+    },
+    {
+      "name_ko": "치즈케이크",
+      "gold": "cheesecake",
+      "pred": "cheesecake",
+      "pred_kcal": 320,
+      "ref_kcal": 321.0,
+      "correct": true,
+      "pred_before": "cheesecake"
+    }
+  ]
+}

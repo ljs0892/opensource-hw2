@@ -1,0 +1,141 @@
+name: Deploy · zero-downtime local (self-hosted macOS)
+
+# "CI · Docker build & push" 가 main 에서 성공하면 이 Mac 의 self-hosted runner 에서 배포한다.
+#   1) 독립 모니터링 프로세스 시작 (고정 이미지로 /api/predict 를 1초 간격 호출)
+#   2) 배포 전 정상 응답 연속 10회 확인
+#   3) 블루/그린 무중단 전환 (scripts/deploy_bluegreen.sh)
+#   4) 배포 완료 후 30초 추가 관찰 → 모니터 종료
+#   5) 요약 출력, 전체 로그(UTF-8) 아티팩트 업로드
+# 수동 실행: Actions 탭 → Run workflow → image_tag 입력 (예: sha-5acfbe1)
+on:
+  workflow_run:
+    workflows: ["CI · Docker build & push"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "배포할 이미지 태그 (예: sha-5acfbe1, latest)"
+        required: true
+        default: latest
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-local
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 45
+    env:
+      SERVICE_URL: http://127.0.0.1:8000
+
+    steps:
+      - name: 소스 가져오기 (배포 대상 커밋 기준)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+
+      - name: 배포 이미지 태그 결정
+        id: tag
+        env:
+          EVENT: ${{ github.event_name }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          INPUT_TAG: ${{ inputs.image_tag }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = "workflow_run" ]; then
+            TAG="sha-${HEAD_SHA:0:7}"
+          else
+            TAG="$INPUT_TAG"
+          fi
+          echo "배포 태그: $TAG"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Docker Hub 로그인
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: 독립 모니터링 시작 (배포 전부터 종료까지 유지)
+        run: |
+          set -euo pipefail
+          mkdir -p monitor
+          rm -f monitor/STOP monitor/requests.jsonl monitor/monitor.log
+          : > monitor/phases.log
+          printf '%s PRE_MONITOR_START\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> monitor/phases.log
+          nohup python3 scripts/monitor.py run \
+            --url "$SERVICE_URL/api/predict" \
+            --image tests/fixtures/images/bibimbap_seoul_beef.jpg \
+            --out monitor --phase-log monitor/phases.log \
+            --stop-file monitor/STOP --max-seconds 1500 \
+            > monitor/monitor.stdout.log 2>&1 &
+          echo $! > monitor/monitor.pid
+          disown || true
+          echo "모니터 PID: $(cat monitor/monitor.pid)"
+
+      - name: 배포 전 정상 응답 확인 (연속 10회 성공)
+        run: |
+          set -euo pipefail
+          kill -0 "$(cat monitor/monitor.pid)"
+          python3 scripts/monitor.py wait-ok --log monitor/requests.jsonl --consecutive 10 --timeout 240
+
+      - name: 무중단 배포 (블루/그린 전환)
+        env:
+          IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/food-calorie-app:${{ steps.tag.outputs.tag }}
+          PHASE_LOG: monitor/phases.log
+        run: |
+          set -o pipefail
+          scripts/deploy_bluegreen.sh 2>&1 | tee -a monitor/deploy.log
+
+      - name: 배포 완료 후 30초 추가 관찰
+        run: |
+          set -euo pipefail
+          kill -0 "$(cat monitor/monitor.pid)"
+          printf '%s POST_OBSERVE_START\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> monitor/phases.log
+          sleep 30
+          printf '%s POST_OBSERVE_END\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> monitor/phases.log
+
+      - name: 모니터 종료
+        if: always()
+        run: |
+          touch monitor/STOP
+          if [ -f monitor/monitor.pid ]; then
+            pid="$(cat monitor/monitor.pid)"
+            for _ in $(seq 1 40); do kill -0 "$pid" 2>/dev/null || break; sleep 1; done
+            kill "$pid" 2>/dev/null || true
+          fi
+
+      - name: 결과 요약과 전체 로그 출력
+        if: always()
+        run: |
+          set +e
+          python3 scripts/monitor_report.py --dir monitor --eval docs/evaluation_summary.json \
+            --service-url "$SERVICE_URL" --md monitor/summary.md
+          cat monitor/summary.md >> "$GITHUB_STEP_SUMMARY"
+          echo "===== 요청별 모니터 로그 (UTF-8) ====="
+          cat monitor/monitor.log 2>/dev/null || echo "(monitor.log 없음)"
+          exit 0
+
+      - name: 모니터 로그 아티팩트 업로드
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: deploy-monitor-${{ github.run_id }}
+          path: monitor/
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Docker Hub 로그아웃
+        if: always()
+        run: |
+          export PATH="$HOME/.docker/bin:/usr/local/bin:$PATH"
+          docker logout || true

@@ -56,10 +56,12 @@ RUN python3 scripts/verify_model.py
 # ---------------------------------------------------------------------------
 FROM ${PYTHON_IMAGE} AS runtime
 
+ARG APP_VERSION=dev
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     HF_HUB_OFFLINE=1 \
-    HF_HUB_DISABLE_TELEMETRY=1
+    HF_HUB_DISABLE_TELEMETRY=1 \
+    APP_VERSION=${APP_VERSION}
 
 RUN groupadd --system --gid 10001 app \
  && useradd --system --uid 10001 --gid app --home-dir /app --shell /usr/sbin/nologin app
@@ -73,6 +75,7 @@ COPY static/ static/
 COPY config/ config/
 COPY data/ data/
 COPY scripts/ scripts/
+COPY tests/fixtures/images/bibimbap_seoul_beef.jpg tests/fixtures/images/
 COPY --from=model /app/models/ models/
 
 RUN mkdir -p logs && chown app:app logs

@@ -7,6 +7,7 @@
 
 import io
 import logging
+import os
 import time
 import uuid
 from collections import OrderedDict
@@ -36,6 +37,7 @@ DISCLAIMER = (
     "사진 속 음식의 양은 추정하지 않으며, 칼로리는 음식 종류별 1인분 기준 대략값입니다."
 )
 MAX_RECENT_PREDICTIONS = 1000
+APP_VERSION = os.environ.get("APP_VERSION", "dev")  # Docker 빌드 시 커밋 기준으로 주입된다
 
 MODEL_CFG = CONFIG["model"]
 INFER_CFG = CONFIG["inference"]
@@ -76,7 +78,13 @@ async def lifespan(app: FastAPI):
                 f"모델 폴더가 없습니다: {MODEL_CFG['local_dir']}. "
                 "먼저 `PYTHONPATH=.vendor python3 scripts/download_model.py`를 실행하세요."
             )
-        app.state.classifier = FoodClassifier(model_dir, model_info(), INFER_CFG["top_k"])
+        app.state.classifier = FoodClassifier(
+            model_dir,
+            model_info(),
+            INFER_CFG["top_k"],
+            preprocess=INFER_CFG.get("preprocess", "full"),
+            tta_hflip=INFER_CFG.get("tta_hflip", False),
+        )
         missing = app.state.nutrition.missing_labels(app.state.classifier.labels)
         if missing:
             log.warning("칼로리 테이블에 없는 라벨: %s", missing)
@@ -183,6 +191,7 @@ async def health(request: Request):
         "model": model_info(),
         "num_labels": len(state.classifier.labels) if loaded else None,
         "config_version": CONFIG["config_version"],
+        "app_version": APP_VERSION,
         "inference": {
             "top_k": INFER_CFG["top_k"],
             "confidence_threshold": INFER_CFG["confidence_threshold"],
@@ -247,9 +256,13 @@ async def predict(request: Request):
     )
     remember_prediction(prediction_id, top_label)
 
+    top1_nutrition = candidates[0].get("nutrition") if status == "ok" else None
     return {
         "prediction_id": prediction_id,
         "status": status,
+        "app_version": APP_VERSION,
+        # 표준 1인분 g (calorie_table 기준). 사진에서 양을 추정한 값이 아니다.
+        "estimated_portion_g": top1_nutrition["serving_g"] if top1_nutrition else None,
         "confidence_threshold": threshold,
         "message": (
             "인식 결과입니다. 아래 칼로리는 1인분 기준 대략값입니다."

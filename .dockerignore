@@ -3,6 +3,8 @@
 .github
 .vendor/
 models/
+models
+eval/
 logs/
 verification/
 __pycache__/

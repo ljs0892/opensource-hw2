@@ -91,6 +91,32 @@ GitHub 저장소의 **Settings → Secrets and variables → Actions**에 다음
 - Docker Hub 저장소 이름은 `<DOCKERHUB_USERNAME>/food-calorie-app`입니다. 첫 push 때 저장소가 없으면 Docker Hub에서 미리 만들어 두세요.
 - 액션은 커밋 SHA로 고정되어 있습니다. 버전을 올릴 때는 `ci.yml`의 주석 버전과 SHA를 함께 바꾸세요.
 
+## 로컬 무중단 배포 (self-hosted Runner, macOS)
+
+`.github/workflows/deploy.yml`은 `CI · Docker build & push`가 `main`에서 성공하면, 이 Mac의 self-hosted Runner에서 방금 올라간 이미지(`sha-<커밋 앞 7자리>`)로 배포합니다. 접속 주소는 `http://127.0.0.1:8000`로 그대로입니다.
+
+- 구조: `food-router`(nginx)가 8000 포트를 점유하고, 앱은 블루/그린 두 컨테이너(`food-app-blue`, `food-app-green`)로 운영합니다.
+- 전환: 유휴 색에 새 이미지를 띄우고 컨테이너 안에서 스모크 테스트를 통과하면 라우터 upstream을 바꾸고 `nginx -s reload`로 전환합니다. 검증에 실패하면 라우터는 건드리지 않습니다.
+- 최초 1회: 무중단 구성 이전의 단일 컨테이너(`food-calorie-app`)에서 옮겨 올 때 포트를 넘기는 약 6초의 공백이 있습니다.
+- 모니터링: 배포 전부터 독립 프로세스(`scripts/monitor.py`)가 고정 사진으로 `/api/predict`를 1초 간격 호출해 기록합니다. 배포 완료 후 30초 더 관찰하고 요약(`scripts/monitor_report.py`)을 Actions Summary에 출력합니다. 전체 로그는 `deploy-monitor-<run_id>` 아티팩트(UTF-8)로 올라갑니다.
+- 로컬에서 직접 실행: `IMAGE=<계정>/food-calorie-app:sha-<커밋> scripts/deploy_bluegreen.sh`
+- 로그와 라우터 상태는 `~/food-calorie-app-data/`에 있으며 저장소 밖에 있습니다.
+
+필요 조건:
+- Docker Desktop이 실행 중이어야 합니다.
+- Runner는 `~/actions-runner`에 설치되어 있고, `svc.sh`로 launchd 서비스로 등록되어 있습니다(`./svc.sh status`로 확인).
+- Runner 라벨 `self-hosted`, `macOS`, `ARM64`를 사용합니다.
+- Runner 설치 파일과 자격 증명은 Git에 포함되지 않습니다(`.gitignore` 참고).
+
+## 인식 성능과 평가
+
+- 평가 세트: Food-101 검증 샤드에서 클래스당 1장씩 100장(시드 2026)을 뽑아 튜닝 30장, 최종 평가 70장으로 나눴습니다. 이미지는 `eval/`에만 두고 Git에 올리지 않습니다(라이선스: 원 데이터셋은 scientific fair use 범위만 허용).
+- 개선 시도는 2회까지만 허용했습니다. 1회차는 전처리(좌우 반전 TTA)이고, 2회차(칼로리 테이블)는 정답 칼로리가 없어 적용하지 않았습니다.
+- 결과 요약: `docs/evaluation_summary.json` (이미지·원본 결과 제외).
+- 평가 스크립트: `scripts/build_eval_set.py`, `scripts/evaluate.py`, `scripts/make_eval_summary.py`.
+- 칼로리 정답은 USDA 기반 **보조(proxy) 정답 18개 클래스**뿐이라 사진별 실측이 아닙니다. 표본이 작아 칼로리 수치는 참고용입니다.
+- 사진 기반 양(g) 추정은 구현하지 않았습니다. 화면과 API의 `estimated_portion_g`는 음식 종류별 **표준 1인분 g**입니다.
+
 ## API
 
 | 메서드 | 경로 | 설명 |

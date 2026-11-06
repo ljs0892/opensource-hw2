@@ -19,7 +19,7 @@ class CalorieTable:
         item = self._items.get(label)
         if item is None:
             return None
-        return {"serving": item["serving"], "kcal": item["kcal"], "unit": self.unit}
+        return {"serving": item["serving"], "serving_g": item["serving_g"], "kcal": item["kcal"], "unit": self.unit}
 
     def all_rows(self) -> list[dict]:
         return [

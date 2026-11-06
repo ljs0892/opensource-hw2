@@ -17,6 +17,12 @@ __pycache__/
 
 # 검증·테스트 산출물
 verification/
+# 평가 세트(이미지·정답·캐시·결과). 라이선스 제한으로 저장소에 올리지 않는다.
+eval/
+# 로컬 개발용 심볼릭 링크 (../models)
+models
+# 배포 모니터링 산출물 (CD 실행 중 생성, 아티팩트로만 보관)
+monitor/
 tests/fixtures/*
 !tests/fixtures/images/
 tests/fixtures/images/*
@@ -30,6 +36,20 @@ tests/fixtures/images/*
 *.pem
 *.key
 .hf_token
+
+# Self-hosted runner: 설치 파일, 자격 증명, 작업 폴더 (저장소 안에 두더라도 커밋하지 않음)
+actions-runner*/
+_work/
+_diag/
+externals/
+bin/Runner.*
+.runner
+.credentials
+.credentials_rsaparams
+.path
+*.tar.gz
+run-helper.sh
+run-helper.cmd
 
 # macOS 잡파일
 .DS_Store

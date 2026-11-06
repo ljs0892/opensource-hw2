@@ -17,7 +17,13 @@
     "top_k": 3,
     "confidence_threshold": 0.5,
     "max_upload_bytes": 10485760,
-    "allowed_formats": ["JPEG", "PNG", "WEBP"]
+    "allowed_formats": [
+      "JPEG",
+      "PNG",
+      "WEBP"
+    ],
+    "preprocess": "full",
+    "tta_hflip": true
   },
   "server": {
     "host": "127.0.0.1",
