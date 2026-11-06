@@ -58,6 +58,14 @@ jobs:
           echo "배포 태그: $TAG"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
+      - name: Docker 설정 분리 (launchd Runner는 macOS 키체인에 접근할 수 없음)
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/docker-config"
+          echo '{}' > "$RUNNER_TEMP/docker-config/config.json"
+          echo "DOCKER_CONFIG=$RUNNER_TEMP/docker-config" >> "$GITHUB_ENV"
+          echo "DOCKER_HOST=unix://$HOME/.docker/run/docker.sock" >> "$GITHUB_ENV"
+
       - name: Docker Hub 로그인
         uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
@@ -106,6 +114,7 @@ jobs:
       - name: 모니터 종료
         if: always()
         run: |
+          mkdir -p monitor
           touch monitor/STOP
           if [ -f monitor/monitor.pid ]; then
             pid="$(cat monitor/monitor.pid)"
@@ -134,8 +143,9 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
-      - name: Docker Hub 로그아웃
+      - name: Docker Hub 로그아웃 및 임시 자격 증명 삭제
         if: always()
         run: |
           export PATH="$HOME/.docker/bin:/usr/local/bin:$PATH"
           docker logout || true
+          rm -rf "$RUNNER_TEMP/docker-config"
